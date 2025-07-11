@@ -1,0 +1,8 @@
+{
+  "default_headers": [
+    "Authorization: Bearer mytoken123",
+    "X-App-Version: 1.0"
+  ],
+  "base_url": "https://jsonplaceholder.typicode.com",
+  "default_timeout": "5s"
+}
