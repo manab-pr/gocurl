@@ -7,39 +7,12 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/fatih/color"
 	"github.com/manab-pr/gocurl/helper"
 )
-
-type Config struct {
-	DefaultHeaders []string `json:"default_headers"`
-	BaseURL        string   `json:"base_url"`
-	DefaultTimeout string   `json:"default_timeout"`
-}
-
-func loadConfig() *Config {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil
-	}
-	configPath := filepath.Join(home, ".gocurlrc")
-
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return nil // silently ignore if not found
-	}
-
-	var cfg Config
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		color.Red("❌ Failed to parse .gocurlrc: %v\n", err)
-		return nil
-	}
-	return &cfg
-}
 
 var (
 	method          string
@@ -54,6 +27,7 @@ var (
 	timeoutStr      string
 	retryCount      int
 	exportCurl      bool
+	noBanner        bool
 )
 
 func init() {
@@ -70,11 +44,21 @@ func init() {
 	flag.StringVar(&timeoutStr, "timeout", "10s", "Set request timeout (e.g. 5s, 2m)")
 	flag.IntVar(&retryCount, "retry", 0, "Retry failed requests up to n times")
 	flag.BoolVar(&exportCurl, "export-curl", false, "Print the equivalent curl command")
+	flag.BoolVar(&noBanner, "no-banner", false, "Disable ASCII banner")
 
 }
 
 func main() {
 	flag.Parse()
+
+	if !noBanner {
+		showBanner()
+	}
+
+	if flag.NArg() < 1 {
+		fmt.Println("🚨 Usage: gocurl [options] URL")
+		return
+	}
 
 	if flag.NArg() < 1 {
 		fmt.Println("🚨 Usage: gocurl [options] URL")
@@ -82,23 +66,6 @@ func main() {
 	}
 
 	url := flag.Arg(0)
-	cfg := loadConfig()
-
-	// Merge .gocurlrc settings
-	if cfg != nil {
-		// Use default timeout if none passed
-		if timeoutStr == "" && cfg.DefaultTimeout != "" {
-			timeoutStr = cfg.DefaultTimeout
-		}
-
-		// Prepend base_url if given a relative path
-		if cfg.BaseURL != "" && !strings.HasPrefix(url, "http") {
-			url = strings.TrimRight(cfg.BaseURL, "/") + "/" + strings.TrimLeft(url, "/")
-		}
-
-		// Merge default headers
-		headers = append(cfg.DefaultHeaders, headers...)
-	}
 
 	method = strings.ToUpper(method)
 	start := time.Now()
@@ -298,4 +265,16 @@ func printCurlCommand(method, url, body string, headers http.Header) {
 	b.WriteString(" " + url)
 
 	color.Cyan("\n📤 Equivalent curl command:\n%s\n", b.String())
+}
+
+func showBanner() {
+	banner := `
+   __  __    _    _   _    _    ____  
+  |  \/  |  / \  | \ | |  / \  | __ ) 
+  | |\/| | / _ \ |  \| | / _ \ |  _ \ 
+  | |  | |/ ___ \| |\  |/ ___ \| |_) |
+  |_|  |_/_/   \_\_| \_/_/   \_\____/ 
+
+`
+	color.HiMagenta(banner)
 }
